@@ -13,6 +13,7 @@ import javax.validation.Valid;
 import javax.ws.rs.NotFoundException;
 
 import org.eclipse.microprofile.opentracing.Traced;
+import org.hibernate.annotations.CreationTimestamp;
 
 import br.com.stefanini.maratonadev.dao.TodoDao;
 import br.com.stefanini.maratonadev.dto.TodoDto;
@@ -31,6 +32,9 @@ public class TodoService {
 	@Inject
 	TodoStatusService statusService;
 	
+	@Inject
+	UserService userService;
+	
 	private void validar(Todo todo) {
 		//validar regra de negocio
 
@@ -48,16 +52,21 @@ public class TodoService {
 	 * Toda tarefa criada vem por padrão na lista
 	 * TODO e com a data corrente
 	 */
-	public void inserir(@Valid TodoDto todoDto) {
+	public void inserir(@Valid TodoDto todoDto, String emailLogado) {
 		//validação
 		Todo todo = TodoParser.get().entidade(todoDto);
 		validar(todo);
 		
-		todo.setDataCriacao(LocalDateTime.now());
+		/**
+		 * logica abaixo substituida por 
+		 * @CreationTimestamp no modelo
+		 */
+		//todo.setDataCriacao(LocalDateTime.now());
 		//chamada da dao
+
 		Long id = dao.inserir(todo);
 		
-//		statusService.inserir(id,StatusEnum.TODO);
+		statusService.inserir(id,StatusEnum.TODO,emailLogado);
 	}
 	
 	public List<TodoDto> listar() {
@@ -81,13 +90,14 @@ public class TodoService {
 	}
 	
 	@Transactional(rollbackOn = Exception.class)
-	public void atualizar(Long id, TodoDto dto) {
+	public void atualizar(Long id, TodoDto dto, String emailLogado) {
 		Todo todo = TodoParser
 				.get()
 				.entidade(dto);
 		Todo todoBanco = buscarPorId(id);
 		todoBanco.setNome(todo.getNome());
 		dao.atualizar(todoBanco);
+		statusService.atualizar(id, dto.getStatus(), emailLogado);
 	}
 	
 	private Todo buscarPorId(Long id) {
